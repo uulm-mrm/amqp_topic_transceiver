@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>amqp_topic_transceiver</name>
+  <version>0.0.0</version>
+  <description>amqp_topic_transceiver</description>
+  <author>Jan Strohbeck</author>
+  <maintainer email="jan.strohbeck@uni-ulm.de">Jan Strohbeck</maintainer>
+  <license>Proprietary, (c) 2018 Ulm University, Institute of Measurement, Control and Microtechnology</license>
+  <buildtool_depend>catkin</buildtool_depend>
+  
+  <build_depend>message_generation</build_depend>
+  <build_depend>aduulm_cmake_tools</build_depend>
+
+  <depend>roscpp</depend>
+  <depend>nodelet</depend>
+  <depend>dynamic_reconfigure</depend>
+  <depend>std_msgs</depend>
+  <depend>message_runtime</depend>
+  <depend>aduulm_logger_lib</depend>
+  
+</package>
