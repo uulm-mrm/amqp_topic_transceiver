@@ -119,18 +119,17 @@ bool AMQPTopicReceiver::run() {
   std::string md5sum;
   std::string datatype;
   std::string def;
-  bool latch;
+  bool latch = false;
   {
-    amqp_bytes_t queuename = amqp_cstring_bytes("hello_metadata");
+    amqp_bytes_t queuename = amqp_cstring_bytes("msg_metadata");
 
     {
-      amqp_queue_declare_ok_t *r =
-          amqp_queue_declare(conn, 1, queuename, 0, 0, 0, 1, amqp_empty_table);
+      amqp_queue_declare(conn, 1, queuename, 0, 0, 0, 1, amqp_empty_table);
       die_on_amqp_error(amqp_get_rpc_reply(conn), "Declaring queue");
     }
 
     const char *exchange = "";
-    const char *routingkey = "hello_metadata";
+    const char *routingkey = "msg_metadata";
 
     auto consumer_tag = amqp_cstring_bytes("metadata_consumer");
     amqp_basic_consume(conn, 1, queuename, consumer_tag, 0, 1, 0,
@@ -188,16 +187,15 @@ bool AMQPTopicReceiver::run() {
     return false;
   }
 
-  amqp_bytes_t queuename = amqp_cstring_bytes("hello");
+  amqp_bytes_t queuename = amqp_cstring_bytes("msg");
 
   {
-    amqp_queue_declare_ok_t *r =
-        amqp_queue_declare(conn, 1, queuename, 0, 0, 0, 1, amqp_empty_table);
+    amqp_queue_declare(conn, 1, queuename, 0, 0, 0, 1, amqp_empty_table);
     die_on_amqp_error(amqp_get_rpc_reply(conn), "Declaring queue");
   }
 
   const char *exchange = "";
-  const char *routingkey = "hello";
+  const char *routingkey = "msg";
 
   auto consumer_tag = amqp_cstring_bytes("msg_consumer");
   amqp_basic_consume(conn, 1, queuename, consumer_tag, 0, 1, 0,
@@ -247,6 +245,7 @@ bool AMQPTopicReceiver::run() {
     amqp_destroy_envelope(&envelope);
   }
   amqp_basic_cancel(conn, 1, consumer_tag);
+  return true;
 }
 
 void AMQPTopicReceiver::reconfigureRequest(

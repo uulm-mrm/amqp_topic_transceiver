@@ -91,9 +91,9 @@ AMQPTopicTransmitter::AMQPTopicTransmitter(ros::NodeHandle node_handle,
   amqp_channel_open(conn, 1);
   die_on_amqp_error(amqp_get_rpc_reply(conn), "Opening channel");
 
-  sub_ = node_handle.subscribe("/cameras/spu4_cam1/image_compressed/compressed",
-                               10, &AMQPTopicTransmitter::processMessage, this,
-                               ros::TransportHints().tcpNoDelay());
+  sub_ =
+      node_handle.subscribe("/msg", 10, &AMQPTopicTransmitter::processMessage,
+                            this, ros::TransportHints().tcpNoDelay());
 }
 
 AMQPTopicTransmitter::~AMQPTopicTransmitter() {
@@ -124,7 +124,7 @@ void AMQPTopicTransmitter::processMessage(
   auto md5sum = msg->getMD5Sum();
 
   if (md5sum != last_md5sum) {
-    amqp_bytes_t queuename = amqp_cstring_bytes("hello_metadata");
+    amqp_bytes_t queuename = amqp_cstring_bytes("msg_metadata");
 
     auto datatype = msg->getDataType();
     auto def = msg->getMessageDefinition();
@@ -155,13 +155,12 @@ void AMQPTopicTransmitter::processMessage(
     amqp_bytes_t data = {.len = buf_size, .bytes = buf};
 
     {
-      amqp_queue_declare_ok_t *r =
-          amqp_queue_declare(conn, 1, queuename, 0, 0, 0, 1, amqp_empty_table);
+      amqp_queue_declare(conn, 1, queuename, 0, 0, 0, 1, amqp_empty_table);
       die_on_amqp_error(amqp_get_rpc_reply(conn), "Declaring metadata queue");
     }
 
     const char *exchange = "";
-    const char *routingkey = "hello_metadata";
+    const char *routingkey = "msg_metadata";
 
     amqp_basic_properties_t props;
     props._flags = AMQP_BASIC_DELIVERY_MODE_FLAG;
@@ -176,16 +175,15 @@ void AMQPTopicTransmitter::processMessage(
     last_md5sum = md5sum;
   }
 
-  amqp_bytes_t queuename = amqp_cstring_bytes("hello");
+  amqp_bytes_t queuename = amqp_cstring_bytes("msg");
 
   {
-    amqp_queue_declare_ok_t *r =
-        amqp_queue_declare(conn, 1, queuename, 0, 0, 0, 1, amqp_empty_table);
+    amqp_queue_declare(conn, 1, queuename, 0, 0, 0, 1, amqp_empty_table);
     die_on_amqp_error(amqp_get_rpc_reply(conn), "Declaring queue");
   }
 
   const char *exchange = "";
-  const char *routingkey = "hello";
+  const char *routingkey = "msg";
 
   char *buf = new char[msg->size()];
   // std::cout << "Publishing Msg with size: " << msg->size() << std::endl;
@@ -198,8 +196,6 @@ void AMQPTopicTransmitter::processMessage(
 
   amqp_basic_properties_t props;
   props._flags = 0;
-  // props._flags = AMQP_BASIC_DELIVERY_MODE_FLAG;
-  // props.delivery_mode = 2; // persistent
   die_on_error(amqp_basic_publish(conn, 1, amqp_cstring_bytes(exchange),
                                   amqp_cstring_bytes(routingkey), 0, 0, &props,
                                   bytes),
