@@ -13,8 +13,10 @@
 #include "amqp_topic_transceiver/AMQPTopicReceiver_configConfig.h"
 #include <dynamic_reconfigure/server.h>
 
-namespace amqp_topic_transceiver {
-class AMQPTopicReceiver {
+namespace amqp_topic_transceiver
+{
+class AMQPTopicReceiver
+{
 public:
   AMQPTopicReceiver(ros::NodeHandle, ros::NodeHandle);
   ~AMQPTopicReceiver();
@@ -24,8 +26,7 @@ public:
   DEFINE_LOGGER_CLASS_INTERFACE_HEADER
 
 private:
-  void reconfigureRequest(AMQPTopicReceiver_configConfig &new_config,
-                          uint32_t level);
+  void reconfigureRequest(AMQPTopicReceiver_configConfig& new_config, uint32_t level);
 
 private:
   ros::Publisher pub_;
@@ -37,6 +38,6 @@ private:
 
   dynamic_reconfigure::Server<AMQPTopicReceiver_configConfig> dyn_param_server_;
 };
-} // namespace amqp_topic_transceiver
+}  // namespace amqp_topic_transceiver
 
-#endif // AMQP_TOPIC_TRANSCEIVER_AMQPTOPICTRANSMITTER_H
+#endif  // AMQP_TOPIC_TRANSCEIVER_AMQPTOPICTRANSMITTER_H

@@ -13,8 +13,10 @@
 #include "amqp_topic_transceiver/AMQPTopicTransmitter_configConfig.h"
 #include <dynamic_reconfigure/server.h>
 
-namespace amqp_topic_transceiver {
-class AMQPTopicTransmitter {
+namespace amqp_topic_transceiver
+{
+class AMQPTopicTransmitter
+{
 public:
   AMQPTopicTransmitter(ros::NodeHandle, ros::NodeHandle);
   ~AMQPTopicTransmitter();
@@ -22,12 +24,10 @@ public:
   DEFINE_LOGGER_CLASS_INTERFACE_HEADER
 
 private:
-  void reconfigureRequest(AMQPTopicTransmitter_configConfig &new_config,
-                          uint32_t level);
+  void reconfigureRequest(AMQPTopicTransmitter_configConfig& new_config, uint32_t level);
 
 private:
-  void
-  processMessage(const ros::MessageEvent<topic_tools::ShapeShifter> &msg_event);
+  void processMessage(const ros::MessageEvent<topic_tools::ShapeShifter>& msg_event);
 
   ros::Subscriber sub_;
   bool metadata_sent;
@@ -38,9 +38,8 @@ private:
 
   std::string last_md5sum;
 
-  dynamic_reconfigure::Server<AMQPTopicTransmitter_configConfig>
-      dyn_param_server_;
+  dynamic_reconfigure::Server<AMQPTopicTransmitter_configConfig> dyn_param_server_;
 };
-} // namespace amqp_topic_transceiver
+}  // namespace amqp_topic_transceiver
 
-#endif // AMQP_TOPIC_TRANSCEIVER_AMQPTOPICTRANSMITTER_H
+#endif  // AMQP_TOPIC_TRANSCEIVER_AMQPTOPICTRANSMITTER_H
