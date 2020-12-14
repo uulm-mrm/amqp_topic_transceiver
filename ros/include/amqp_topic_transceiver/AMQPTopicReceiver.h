@@ -15,6 +15,20 @@
 
 namespace amqp_topic_transceiver
 {
+struct TopicPublisherInfoContainer
+{
+  explicit TopicPublisherInfoContainer(const ros::Publisher& pub) : pub(pub)
+  {
+  }
+
+  ros::Publisher pub;
+  std::string md5sum;
+  std::string datatype;
+  std::string definition;
+  bool latch;
+  topic_tools::ShapeShifter msg;
+};
+
 class AMQPTopicReceiver
 {
 public:
@@ -28,15 +42,24 @@ public:
 private:
   void reconfigureRequest(AMQPTopicReceiver_configConfig& new_config, uint32_t level);
 
-private:
-  ros::Publisher pub_;
-  bool publisher_created;
+  std::map<std::string, TopicPublisherInfoContainer> pubs_;
+
+  std::string suffix_;
+
+  std::string server_url_;
+  int server_port_;
+  std::string server_user_;
+  std::string server_password_;
+  std::string exchange_;
+  int queue_size_;
+  std::string topic_suffix_;
 
   ros::NodeHandle nh_;
   ros::NodeHandle private_nh_;
   amqp_connection_state_t conn;
 
-  dynamic_reconfigure::Server<AMQPTopicReceiver_configConfig> dyn_param_server_;
+  boost::recursive_mutex guard_dyn_param_server_recursive_mutex_;
+  std::shared_ptr<dynamic_reconfigure::Server<AMQPTopicReceiver_configConfig> > dyn_param_server_;
 };
 }  // namespace amqp_topic_transceiver
 

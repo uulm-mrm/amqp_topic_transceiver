@@ -15,6 +15,18 @@
 
 namespace amqp_topic_transceiver
 {
+struct TopicSubscriberInfoContainer
+{
+  explicit TopicSubscriberInfoContainer(const ros::Subscriber& sub) : sub(sub)
+  {
+  }
+
+  ros::Subscriber sub;
+  bool metadata_sent{ false };
+  std::string last_md5sum;
+  ros::Time last_metadata_transmit;
+};
+
 class AMQPTopicTransmitter
 {
 public:
@@ -26,19 +38,23 @@ public:
 private:
   void reconfigureRequest(AMQPTopicTransmitter_configConfig& new_config, uint32_t level);
 
-private:
-  void processMessage(const ros::MessageEvent<topic_tools::ShapeShifter>& msg_event);
+  void processMessage(const std::string& topic, const ros::MessageEvent<topic_tools::ShapeShifter>& msg_event);
 
-  ros::Subscriber sub_;
-  bool metadata_sent;
+  std::map<std::string, TopicSubscriberInfoContainer> subs_;
 
   ros::NodeHandle nh_;
   ros::NodeHandle private_nh_;
   amqp_connection_state_t conn;
 
-  std::string last_md5sum;
+  std::string server_url_;
+  int server_port_;
+  std::string server_user_;
+  std::string server_password_;
+  std::string exchange_;
+  int queue_size_;
 
-  dynamic_reconfigure::Server<AMQPTopicTransmitter_configConfig> dyn_param_server_;
+  boost::recursive_mutex guard_dyn_param_server_recursive_mutex_;
+  std::shared_ptr<dynamic_reconfigure::Server<AMQPTopicTransmitter_configConfig> > dyn_param_server_;
 };
 }  // namespace amqp_topic_transceiver
 
