@@ -52,6 +52,7 @@ private:
   std::string server_password_;
   std::string exchange_;
   int queue_size_;
+  float metadata_retransmission_period_seconds;
 
   boost::recursive_mutex guard_dyn_param_server_recursive_mutex_;
   std::shared_ptr<dynamic_reconfigure::Server<AMQPTopicTransmitter_configConfig> > dyn_param_server_;

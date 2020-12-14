@@ -86,6 +86,7 @@ AMQPTopicTransmitter::AMQPTopicTransmitter(ros::NodeHandle node_handle, ros::Nod
   private_nh_.param<int>("queue_size", queue_size_, 1);
   private_nh_.param<std::string>("server_user", server_user_, "guest");
   private_nh_.param<std::string>("server_password", server_password_, "guest");
+  private_nh_.param<float>("metadata_retransmission_period_seconds", metadata_retransmission_period_seconds, 3.0);
 
   std::vector<std::string> topics;
   private_nh_.param<std::vector<std::string> >("topics", topics, {});
@@ -171,8 +172,8 @@ void AMQPTopicTransmitter::processMessage(const std::string& topic,
   auto& info = subs_.find(topic)->second;
 
   auto now = ros::Time::now();
-  const auto TRANSMIT_METADATA_EVERY_NSEC = 3.0;
-  if (md5sum != info.last_md5sum || (now - info.last_metadata_transmit).toSec() > TRANSMIT_METADATA_EVERY_NSEC)
+  if (md5sum != info.last_md5sum ||
+      (now - info.last_metadata_transmit).toSec() > metadata_retransmission_period_seconds)
   {
     const auto& datatype = msg->getDataType();
     const auto& def = msg->getMessageDefinition();
@@ -203,13 +204,6 @@ void AMQPTopicTransmitter::processMessage(const std::string& topic,
 
     amqp_bytes_t data = { .len = buf_size, .bytes = buf };
 
-    /* std::string qn = "metadata_" + topic; */
-    /* amqp_bytes_t queuename = amqp_cstring_bytes(qn.c_str()); */
-    /* { */
-    /*   amqp_queue_declare(conn, 1, queuename, 0, 0, 0, 1, amqp_empty_table); */
-    /*   die_on_amqp_error(amqp_get_rpc_reply(conn), "Declaring metadata queue"); */
-    /* } */
-
     const char* exchange = exchange_.c_str();
     const char* routingkey = topic.c_str();
 
@@ -226,11 +220,6 @@ void AMQPTopicTransmitter::processMessage(const std::string& topic,
     info.last_md5sum = md5sum;
     info.last_metadata_transmit = now;
   }
-
-  /* std::string qn = "msg_" + topic; */
-  /* amqp_bytes_t queuename = amqp_cstring_bytes(qn.c_str()); */
-  /* amqp_queue_declare(conn, 1, queuename, 0, 0, 0, 1, amqp_empty_table); */
-  /* die_on_amqp_error(amqp_get_rpc_reply(conn), "Declaring queue"); */
 
   const char* exchange = exchange_.c_str();
   const char* routingkey = topic.c_str();
