@@ -135,6 +135,7 @@ void AMQPTopicTransmitter::processMessage(const std::string& topic,
     buf[buf_size - 1] = static_cast<char>(latch);
 
     amqp_bytes_t data = { .len = buf_size, .bytes = buf };
+    LOG_DEB("Sending AMQP metadata message with body size: " << buf_size);
 
     const char* exchange = exchange_.c_str();
     const char* routingkey = topic.c_str();
@@ -157,7 +158,7 @@ void AMQPTopicTransmitter::processMessage(const std::string& topic,
   const char* routingkey = topic.c_str();
 
   char* buf = new char[msg->size()];
-  LOG_DEB("Publishing Msg with size: " << msg->size());
+  LOG_DEB("Sending AMQP ROS message with body size: " << msg->size());
   Wrapper wrap(buf);
   msg->write(wrap);
   const amqp_bytes_t bytes = { .len = msg->size(), .bytes = buf };
