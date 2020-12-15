@@ -7,9 +7,7 @@
     <rosparam param="topics">['/test', '/not_available']</rosparam>
     <param name="log_level" value="4" />
     <param name="server_url" value="localhost" />
-    <!-- <param name="server_url" value="94.125.79.77" /> -->
-    <!-- <param name="server_url" value="10.46.172.70" /> -->
-    <param name="server_port" value="5001" />
+    <param name="server_port" value="5672" />
     <param name="server_user" value="mrm" />
     <param name="server_password" value="mrm" />
   </node>
@@ -17,9 +15,7 @@
   <node pkg="amqp_topic_transceiver" type="AMQPTopicReceiver_node" name="receiver" output="screen">
     <param name="log_level" value="4" />
     <param name="server_url" value="localhost" />
-    <!-- <param name="server_url" value="94.125.79.77" /> -->
-    <!-- <param name="server_url" value="10.46.172.70" /> -->
-    <param name="server_port" value="5001" />
+    <param name="server_port" value="5672" />
     <param name="server_user" value="mrm" />
     <param name="server_password" value="mrm" />
     <param name="topic_suffix" value="__amqp" />
