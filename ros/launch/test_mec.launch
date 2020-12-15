@@ -1,0 +1,15 @@
+<?xml version="2.0"?>
+<launch>
+  <node pkg="rostopic" type="rostopic" name="test_publisher" args="pub -r 3 /test std_msgs/String testtesttest" output="screen">
+  </node>
+
+  <node pkg="amqp_topic_transceiver" type="AMQPTopicTransmitter_node" name="transmitter" output="screen">
+    <rosparam param="topics">['/test', '/not_available']</rosparam>
+    <param name="log_level" value="4" />
+    <param name="server_url" value="94.125.79.77" />
+    <!-- <param name="server_url" value="10.46.172.70" /> -->
+    <param name="server_port" value="5001" />
+    <param name="server_user" value="mrm" />
+    <param name="server_password" value="mrm" />
+  </node>
+</launch>
