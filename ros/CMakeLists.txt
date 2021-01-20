@@ -59,7 +59,7 @@ foreach(target_node AMQPTopicTransmitter_node AMQPTopicReceiver_node)
   target_link_libraries(${target_node}
     PUBLIC
       ${catkin_LIBRARIES}
-      ${RABBITMQ_C_LIBRARIES}
+      ${RABBITMQ_C_LDFLAGS}
   )
 
   # Link aduulm targets
