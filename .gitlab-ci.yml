@@ -3,7 +3,7 @@ variables:
 
 # Tests for Noetic without install
 noetic-catkin_build-no_install:
-  image: mrm-git.e-technik.uni-ulm.de:4567/mec/intersection_spu_sandbox:latest
+  image: mrm-git.e-technik.uni-ulm.de:4567/aduulm/docker_images/aduulm-ros-noetic:latest
   stage: build
   script:
     - cd $CI_PROJECT_DIR
@@ -11,7 +11,7 @@ noetic-catkin_build-no_install:
 
 # Tests for Noetic with Install
 noetic-catkin_build-install:
-  image: mrm-git.e-technik.uni-ulm.de:4567/mec/intersection_spu_sandbox:latest
+  image: mrm-git.e-technik.uni-ulm.de:4567/aduulm/docker_images/aduulm-ros-noetic:latest
   stage: build
   script:
     - cd $CI_PROJECT_DIR
