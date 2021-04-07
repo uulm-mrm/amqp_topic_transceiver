@@ -17,7 +17,7 @@ namespace amqp_topic_transceiver
 {
 struct TopicPublisherInfoContainer
 {
-  explicit TopicPublisherInfoContainer(const ros::Publisher& pub) : pub(pub)
+  explicit TopicPublisherInfoContainer(const ros::Publisher& pub_) : pub(pub_)
   {
   }
 
@@ -41,6 +41,7 @@ public:
 
 private:
   void reconfigureRequest(AMQPTopicReceiver_configConfig& new_config, uint32_t level);
+  int decompress_buffer(const char* buf, const char** buf2, size_t size);
 
   std::map<std::string, TopicPublisherInfoContainer> pubs_;
 
@@ -53,6 +54,8 @@ private:
   std::string exchange_;
   int queue_size_;
   std::string topic_suffix_;
+  bool use_compression_;
+  int decompression_buffer_size_;
 
   ros::NodeHandle nh_;
   ros::NodeHandle private_nh_;

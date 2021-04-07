@@ -1,6 +1,7 @@
 #include <amqp_topic_transceiver/AMQPTopicTransmitter.h>
 #include <topic_tools/shape_shifter.h>
 #include <amqp_topic_transceiver/utils.h>
+#include <blosc.h>
 
 DEFINE_LOGGER_VARIABLES
 
@@ -19,6 +20,10 @@ AMQPTopicTransmitter::AMQPTopicTransmitter(ros::NodeHandle node_handle, ros::Nod
   private_nh_.param<std::string>("server_user", server_user_, "guest");
   private_nh_.param<std::string>("server_password", server_password_, "guest");
   private_nh_.param<float>("metadata_retransmission_period_seconds", metadata_retransmission_period_seconds, 3.0);
+  private_nh_.param<bool>("use_compression", use_compression_, true);
+  std::string compression_algorithm;
+  private_nh_.param<std::string>("compression_algorithm", compression_algorithm, "zstd");
+  private_nh_.param<int>("compression_level", compression_level_, 5);
 
   std::vector<std::string> topics;
   private_nh_.param<std::vector<std::string> >("topics", topics, {});
@@ -26,6 +31,13 @@ AMQPTopicTransmitter::AMQPTopicTransmitter(ros::NodeHandle node_handle, ros::Nod
   dyn_param_server_.reset(new dynamic_reconfigure::Server<amqp_topic_transceiver::AMQPTopicTransmitter_configConfig>(
       guard_dyn_param_server_recursive_mutex_, private_nh_));
   dyn_param_server_->setCallback([this](auto&& config, auto&& level) { reconfigureRequest(config, level); });
+
+  blosc_init();
+  auto rcode = blosc_set_compressor(compression_algorithm.c_str());
+  if (rcode < 0)
+  {
+    LOG_ERR("Error setting compressor. Does it really exist?");
+  }
 
   amqp_socket_t* socket = nullptr;
 
@@ -83,17 +95,47 @@ class Wrapper
 public:
   explicit Wrapper(char* buf)
   {
-    this->buf = buf;
+    buf_ = buf;
   }
 
   char* advance(int size)
   {
-    return buf;
+    return buf_;
   }
 
 private:
-  char* buf;
+  char* buf_;
 };
+
+size_t AMQPTopicTransmitter::compress_buffer(const char* buf, const char** buf2, size_t size)
+{
+  if (!use_compression_)
+  {
+    *buf2 = buf;
+    return size;
+  }
+  LOG_DEB("Compression input size: " << size);
+  *buf2 = new char[size];
+  int csize =
+      blosc_compress(compression_level_, BLOSC_BITSHUFFLE, sizeof(double), size, buf, const_cast<char*>(*buf2), size);
+  if (csize == 0)
+  {
+    LOG_DEB("Buffer is uncompressible.  Giving up.");
+    delete[] * buf2;
+    *buf2 = buf;
+    return size;
+  }
+  if (csize < 0)
+  {
+    LOG_ERR("Compression error.  Error code: " << csize);
+    delete[] * buf2;
+    *buf2 = buf;
+    return size;
+  }
+
+  LOG_DEB("Compression: " << size << " -> " << csize << " (" << ((1. * size) / csize) << ")");
+  return csize;
+}
 
 void AMQPTopicTransmitter::processMessage(const std::string& topic,
                                           const ros::MessageEvent<topic_tools::ShapeShifter>& msg_event)
@@ -134,8 +176,11 @@ void AMQPTopicTransmitter::processMessage(const std::string& topic,
     memcpy(data_ptr + len_ptr[0] + len_ptr[1], def.c_str(), def.size());
     buf[buf_size - 1] = static_cast<char>(latch);
 
-    amqp_bytes_t data = { .len = buf_size, .bytes = buf };
-    LOG_DEB("Sending AMQP metadata message with body size: " << buf_size);
+    const char* buf_compressed;
+    size_t size_compressed = compress_buffer(buf, &buf_compressed, buf_size);
+
+    amqp_bytes_t data = { .len = size_compressed, .bytes = const_cast<char*>(buf_compressed) };
+    LOG_DEB("Sending AMQP metadata message with body size: " << size_compressed);
 
     const char* exchange = exchange_.c_str();
     const char* routingkey = topic.c_str();
@@ -158,10 +203,13 @@ void AMQPTopicTransmitter::processMessage(const std::string& topic,
   const char* routingkey = topic.c_str();
 
   char* buf = new char[msg->size()];
-  LOG_DEB("Sending AMQP ROS message with body size: " << msg->size());
+  size_t size = msg->size();
   Wrapper wrap(buf);
   msg->write(wrap);
-  const amqp_bytes_t bytes = { .len = msg->size(), .bytes = buf };
+  const char* buf_compressed;
+  size_t size_compressed = compress_buffer(buf, &buf_compressed, size);
+  const amqp_bytes_t bytes = { .len = size_compressed, .bytes = const_cast<char*>(buf_compressed) };
+  LOG_DEB("Sending AMQP ROS message with body size: " << size_compressed);
 
   // LOG_DEB(msg->getMD5Sum() << " | " << msg->getDataType() << " | " << msg->getMessageDefinition())
 

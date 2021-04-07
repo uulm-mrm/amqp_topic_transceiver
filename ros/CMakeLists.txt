@@ -7,6 +7,7 @@ show_build_info("ros")
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(RABBITMQ_C REQUIRED librabbitmq)
+pkg_check_modules(BLOSC REQUIRED blosc)
 
 find_aduulm_package(aduulm_logger_lib)
 
@@ -45,12 +46,17 @@ foreach(target_node AMQPTopicTransmitter_node AMQPTopicReceiver_node)
   target_include_directories(${target_node}
     PUBLIC
       include
+  )
+  target_include_directories(${target_node}
+    SYSTEM
+    PUBLIC
       ${catkin_INCLUDE_DIRS}
       ${RABBITMQ_C_INCLUDE_DIRS}
+      ${BLOSC_INCLUDE_DIRS}
   )
 
   add_dependencies(${target_node} ${${PROJECT_NAME}_EXPORTED_TARGETS})
-  target_compile_features(${target_node} PRIVATE cxx_std_17)
+  target_compile_features(${target_node} PRIVATE cxx_std_20)
   target_compile_definitions(${target_node} PRIVATE "-D${package_name}_VERSION=\"${package_version}\"")
   target_compile_options(${target_node} PRIVATE $<$<CXX_COMPILER_ID:GNU>:-Wall>)
 
@@ -60,6 +66,8 @@ foreach(target_node AMQPTopicTransmitter_node AMQPTopicReceiver_node)
     PUBLIC
       ${catkin_LIBRARIES}
       ${RABBITMQ_C_LDFLAGS}
+      -L/usr/local/lib
+      ${BLOSC_LDFLAGS}
   )
 
   # Link aduulm targets

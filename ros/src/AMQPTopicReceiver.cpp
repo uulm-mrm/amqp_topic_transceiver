@@ -1,6 +1,7 @@
 #include <amqp_topic_transceiver/AMQPTopicReceiver.h>
 #include <topic_tools/shape_shifter.h>
 #include <amqp_topic_transceiver/utils.h>
+#include <blosc.h>
 
 DEFINE_LOGGER_VARIABLES
 
@@ -20,10 +21,19 @@ AMQPTopicReceiver::AMQPTopicReceiver(ros::NodeHandle node_handle, ros::NodeHandl
   private_nh_.param<std::string>("server_user", server_user_, "guest");
   private_nh_.param<std::string>("server_password", server_password_, "guest");
   private_nh_.param<std::string>("topic_suffix", topic_suffix_, "");
+  private_nh_.param<bool>("use_compression", use_compression_, true);
+  private_nh_.param<int>("decompression_buffer_size", decompression_buffer_size_, 50 * 1024);
 
   dyn_param_server_.reset(new dynamic_reconfigure::Server<amqp_topic_transceiver::AMQPTopicReceiver_configConfig>(
       guard_dyn_param_server_recursive_mutex_, private_nh_));
   dyn_param_server_->setCallback([this](auto&& config, auto&& level) { reconfigureRequest(config, level); });
+
+  blosc_init();
+  auto rcode = blosc_set_compressor("zstd");
+  if (rcode < 0)
+  {
+    LOG_ERR("Error setting compressor. Does it really exist?");
+  }
 
   amqp_socket_t* socket = nullptr;
 
@@ -69,22 +79,22 @@ class Wrapper
 public:
   Wrapper(const char* buf, int size)
   {
-    this->buf = buf;
-    this->size = size;
+    buf_ = buf;
+    size_ = size;
   }
 
   [[nodiscard]] int getLength() const
   {
-    return size;
+    return size_;
   }
   const char* getData()
   {
-    return buf;
+    return buf_;
   }
 
 private:
-  const char* buf;
-  int size;
+  const char* buf_;
+  int size_;
 };
 
 static inline std::string b2s(const amqp_bytes_t& bytes)
@@ -102,6 +112,29 @@ static inline std::string b2s(const amqp_bytes_t& bytes)
 //
 //   return ss.str();
 // }
+
+int AMQPTopicReceiver::decompress_buffer(const char* buf, const char** buf2, size_t size)
+{
+  if (!use_compression_)
+  {
+    *buf2 = buf;
+    return size;
+  }
+  LOG_DEB("Decompression input size: " << size);
+  int dsize = decompression_buffer_size_;
+  *buf2 = new char[dsize];
+  dsize = blosc_decompress(buf, const_cast<char*>(*buf2), dsize);
+  if (dsize < 0)
+  {
+    LOG_DEB("Decompression error.  Error code: " << dsize);
+    LOG_DEB("Assuming data was not compressed in the first place.");
+    delete[] * buf2;
+    *buf2 = buf;
+    return size;
+  }
+  LOG_DEB("Decompression output size: " << dsize);
+  return dsize;
+}
 
 bool AMQPTopicReceiver::run()
 {
@@ -128,9 +161,9 @@ bool AMQPTopicReceiver::run()
     amqp_maybe_release_buffers(conn);
 
     struct timeval timeout = { .tv_sec = 0, .tv_usec = 200 };
-    auto res = amqp_consume_message(conn, &envelope, &timeout, 0);
+    auto consume_res = amqp_consume_message(conn, &envelope, &timeout, 0);
 
-    if (AMQP_RESPONSE_NORMAL != res.reply_type)
+    if (AMQP_RESPONSE_NORMAL != consume_res.reply_type)
     {
       continue;
     }
@@ -147,7 +180,9 @@ bool AMQPTopicReceiver::run()
     if (content_type == "application/message-metadata")
     {
       LOG_DEB("Received topic metadata for topic " << topic);
-      const char* buf = static_cast<const char*>(envelope.message.body.bytes);
+      const auto* buf_compressed = static_cast<const char*>(envelope.message.body.bytes);
+      const char* buf;
+      decompress_buffer(buf_compressed, &buf, envelope.message.body.len);
       const auto* len_ptr = reinterpret_cast<const uint32_t*>(buf);
       const char* data_ptr = buf + 3 * sizeof(uint32_t);
 
@@ -182,7 +217,9 @@ bool AMQPTopicReceiver::run()
         continue;
       }
       LOG_DEB("Publishing on topic " << topic << topic_suffix_);
-      auto* buf = static_cast<char*>(envelope.message.body.bytes);
+      const auto* buf_compressed = static_cast<const char*>(envelope.message.body.bytes);
+      const char* buf;
+      decompress_buffer(buf_compressed, &buf, envelope.message.body.len);
       auto size = envelope.message.body.len;
       auto& msg = info_entry->second.msg;
       Wrapper wrap(buf, size);

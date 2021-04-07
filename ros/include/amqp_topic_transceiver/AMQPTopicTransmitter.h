@@ -17,7 +17,7 @@ namespace amqp_topic_transceiver
 {
 struct TopicSubscriberInfoContainer
 {
-  explicit TopicSubscriberInfoContainer(const ros::Subscriber& sub) : sub(sub)
+  explicit TopicSubscriberInfoContainer(const ros::Subscriber& sub_) : sub(sub_)
   {
   }
 
@@ -39,6 +39,7 @@ private:
   void reconfigureRequest(AMQPTopicTransmitter_configConfig& new_config, uint32_t level);
 
   void processMessage(const std::string& topic, const ros::MessageEvent<topic_tools::ShapeShifter>& msg_event);
+  size_t compress_buffer(const char* buf, const char** buf2, size_t size);
 
   std::map<std::string, TopicSubscriberInfoContainer> subs_;
 
@@ -53,6 +54,8 @@ private:
   std::string exchange_;
   int queue_size_;
   float metadata_retransmission_period_seconds;
+  bool use_compression_;
+  int compression_level_;
 
   boost::recursive_mutex guard_dyn_param_server_recursive_mutex_;
   std::shared_ptr<dynamic_reconfigure::Server<AMQPTopicTransmitter_configConfig> > dyn_param_server_;
