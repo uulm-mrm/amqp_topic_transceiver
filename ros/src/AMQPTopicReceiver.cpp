@@ -219,8 +219,7 @@ bool AMQPTopicReceiver::run()
       LOG_DEB("Publishing on topic " << topic << topic_suffix_);
       const auto* buf_compressed = static_cast<const char*>(envelope.message.body.bytes);
       const char* buf;
-      decompress_buffer(buf_compressed, &buf, envelope.message.body.len);
-      auto size = envelope.message.body.len;
+      auto size = decompress_buffer(buf_compressed, &buf, envelope.message.body.len);
       auto& msg = info_entry->second.msg;
       Wrapper wrap(buf, size);
       msg.read(wrap);
