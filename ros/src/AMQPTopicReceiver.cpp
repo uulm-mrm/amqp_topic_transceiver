@@ -124,7 +124,7 @@ int AMQPTopicReceiver::decompress_buffer(const char* buf, const char** buf2, siz
   int dsize = decompression_buffer_size_;
   *buf2 = new char[dsize];
   dsize = blosc_decompress(buf, const_cast<char*>(*buf2), dsize);
-  if (dsize < 0)
+  if (dsize <= 0)
   {
     LOG_DEB("Decompression error.  Error code: " << dsize);
     LOG_DEB("Assuming data was not compressed in the first place.");
