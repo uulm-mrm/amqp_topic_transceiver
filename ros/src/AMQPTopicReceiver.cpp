@@ -160,7 +160,7 @@ bool AMQPTopicReceiver::run()
     amqp_envelope_t envelope;
     amqp_maybe_release_buffers(conn);
 
-    struct timeval timeout = { .tv_sec = 0, .tv_usec = 200 };
+    struct timeval timeout = { .tv_sec = 0, .tv_usec = 500000 };
     auto consume_res = amqp_consume_message(conn, &envelope, &timeout, 0);
 
     if (AMQP_RESPONSE_NORMAL != consume_res.reply_type)
