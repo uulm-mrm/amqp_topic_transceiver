@@ -190,6 +190,10 @@ bool AMQPTopicReceiver::run()
       auto datatype = std::string(data_ptr + len_ptr[0], len_ptr[1]);
       auto definition = std::string(data_ptr + len_ptr[0] + len_ptr[1], len_ptr[2]);
       bool latch = buf[buf_size - 1] != 0;
+      if (buf != buf_compressed)
+      {
+        delete[] buf;
+      }
 
       auto info_entry = pubs_.find(topic);
       if (info_entry != pubs_.end() && info_entry->second.md5sum == md5sum && latch == info_entry->second.latch)
@@ -223,6 +227,10 @@ bool AMQPTopicReceiver::run()
       auto& msg = info_entry->second.msg;
       Wrapper wrap(buf, size);
       msg.read(wrap);
+      if (buf != buf_compressed)
+      {
+        delete[] buf;
+      }
 
       info_entry->second.pub.publish(msg);
     }
