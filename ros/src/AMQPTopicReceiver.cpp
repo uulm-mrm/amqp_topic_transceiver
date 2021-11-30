@@ -198,6 +198,7 @@ bool AMQPTopicReceiver::run()
       auto info_entry = pubs_.find(topic);
       if (info_entry != pubs_.end() && info_entry->second.md5sum == md5sum && latch == info_entry->second.latch)
       {
+        amqp_destroy_envelope(&envelope);
         continue;
       }
       ros::AdvertiseOptions opts(topic + topic_suffix_, queue_size_, md5sum, datatype, definition);
@@ -218,6 +219,7 @@ bool AMQPTopicReceiver::run()
       auto info_entry = pubs_.find(topic);
       if (info_entry == pubs_.end())
       {
+        amqp_destroy_envelope(&envelope);
         continue;
       }
       LOG_DEB("Publishing on topic " << topic << topic_suffix_);
@@ -234,7 +236,6 @@ bool AMQPTopicReceiver::run()
 
       info_entry->second.pub.publish(msg);
     }
-
     amqp_destroy_envelope(&envelope);
   }
   // amqp_basic_cancel(conn, 1, NULL);
