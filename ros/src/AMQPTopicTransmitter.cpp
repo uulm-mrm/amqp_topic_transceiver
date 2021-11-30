@@ -193,6 +193,10 @@ void AMQPTopicTransmitter::processMessage(const std::string& topic,
         amqp_basic_publish(conn, 1, amqp_cstring_bytes(exchange), amqp_cstring_bytes(routingkey), 0, 0, &props, data),
         "Publishing metadata");
 
+    if (buf_compressed != buf)
+    {
+      delete[] buf_compressed;
+    }
     delete[] buf;
     info.metadata_sent = true;
     info.last_md5sum = md5sum;
@@ -219,7 +223,10 @@ void AMQPTopicTransmitter::processMessage(const std::string& topic,
   die_on_error(
       amqp_basic_publish(conn, 1, amqp_cstring_bytes(exchange), amqp_cstring_bytes(routingkey), 0, 0, &props, bytes),
       "Publishing");
-
+  if (buf_compressed != buf)
+  {
+    delete[] buf_compressed;
+  }
   delete[] buf;
 }
 
