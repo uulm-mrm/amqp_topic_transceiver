@@ -1,6 +1,5 @@
 #include <amqp_topic_transceiver/AMQPTopicTransmitter.h>
 #include <topic_tools/shape_shifter.h>
-#include <amqp_topic_transceiver/utils.h>
 #include <blosc.h>
 
 DEFINE_LOGGER_VARIABLES
@@ -39,36 +38,11 @@ AMQPTopicTransmitter::AMQPTopicTransmitter(ros::NodeHandle node_handle, ros::Nod
     LOG_ERR("Error setting compressor. Does it really exist?");
   }
 
-  amqp_socket_t* socket = nullptr;
+  client_ = std::make_shared<AMQPClient>(
+      server_url_ + ":" + std::to_string(server_port_), exchange_, server_user_, server_password_);
 
-  conn = amqp_new_connection();
-
-  socket = amqp_tcp_socket_new(conn);
-  if (socket == nullptr)
-  {
-    die("creating TCP socket");
-  }
-
-  int status = amqp_socket_open(socket, server_url_.c_str(), server_port_);
-  if (status != 0)
-  {
-    die("opening TCP socket");
-  }
-
-  die_on_amqp_error(amqp_login(conn,
-                               "/",
-                               AMQP_DEFAULT_MAX_CHANNELS,
-                               AMQP_DEFAULT_FRAME_SIZE,
-                               0,
-                               AMQP_SASL_METHOD_PLAIN,
-                               server_user_.c_str(),
-                               server_password_.c_str()),
-                    "Logging in");
-  amqp_channel_open(conn, 1);
-  die_on_amqp_error(amqp_get_rpc_reply(conn), "Opening channel");
-
-  amqp_exchange_declare(
-      conn, 1, amqp_cstring_bytes(exchange_.c_str()), amqp_cstring_bytes("fanout"), 0, 0, 0, 0, amqp_empty_table);
+  container_ = std::make_shared<proton::container>(*client_);
+  container_thread_ = std::make_shared<std::thread>([&]() { container_->run(); });
 
   for (const auto& topic : topics)
   {
@@ -85,9 +59,9 @@ AMQPTopicTransmitter::AMQPTopicTransmitter(ros::NodeHandle node_handle, ros::Nod
 
 AMQPTopicTransmitter::~AMQPTopicTransmitter()
 {
-  die_on_amqp_error(amqp_channel_close(conn, 1, AMQP_REPLY_SUCCESS), "Closing channel");
-  die_on_amqp_error(amqp_connection_close(conn, AMQP_REPLY_SUCCESS), "Closing connection");
-  die_on_error(amqp_destroy_connection(conn), "Ending connection");
+  client_->close();
+  container_->stop();
+  container_thread_->join();
 }
 
 class Wrapper
@@ -178,20 +152,18 @@ void AMQPTopicTransmitter::processMessage(const std::string& topic,
 
     const char* buf_compressed;
     size_t size_compressed = compress_buffer(buf, &buf_compressed, buf_size);
-
-    amqp_bytes_t data = { .len = size_compressed, .bytes = const_cast<char*>(buf_compressed) };
     LOG_DEB("Sending AMQP metadata message with body size: " << size_compressed);
 
-    const char* exchange = exchange_.c_str();
-    const char* routingkey = topic.c_str();
+    proton::message message;
+    message.body() = proton::binary(std::string(const_cast<char*>(buf_compressed), size_compressed));
+    message.to(topic);
+    message.content_type("application/message-metadata");
 
-    amqp_basic_properties_t props;
-    props._flags = AMQP_BASIC_CONTENT_TYPE_FLAG;  // AMQP_BASIC_DELIVERY_MODE_FLAG;
-    props.content_type = amqp_cstring_bytes("application/message-metadata");
-    // props.delivery_mode = 2;  // persistent
-    die_on_error(
-        amqp_basic_publish(conn, 1, amqp_cstring_bytes(exchange), amqp_cstring_bytes(routingkey), 0, 0, &props, data),
-        "Publishing metadata");
+    if (!client_->send(message))
+    {
+      LOG_ERR("Error sending metadata message for " << topic << "...");
+      return;
+    }
 
     if (buf_compressed != buf)
     {
@@ -203,26 +175,27 @@ void AMQPTopicTransmitter::processMessage(const std::string& topic,
     info.last_metadata_transmit = now;
   }
 
-  const char* exchange = exchange_.c_str();
-  const char* routingkey = topic.c_str();
-
   char* buf = new char[msg->size()];
   size_t size = msg->size();
   Wrapper wrap(buf);
   msg->write(wrap);
   const char* buf_compressed;
   size_t size_compressed = compress_buffer(buf, &buf_compressed, size);
-  const amqp_bytes_t bytes = { .len = size_compressed, .bytes = const_cast<char*>(buf_compressed) };
   LOG_DEB("Sending AMQP ROS message with body size: " << size_compressed);
 
   // LOG_DEB(msg->getMD5Sum() << " | " << msg->getDataType() << " | " << msg->getMessageDefinition())
 
-  amqp_basic_properties_t props;
-  props._flags = AMQP_BASIC_CONTENT_TYPE_FLAG;
-  props.content_type = amqp_cstring_bytes("application/octet-string");
-  die_on_error(
-      amqp_basic_publish(conn, 1, amqp_cstring_bytes(exchange), amqp_cstring_bytes(routingkey), 0, 0, &props, bytes),
-      "Publishing");
+  proton::message message;
+  message.body() = proton::binary(std::string(const_cast<char*>(buf_compressed), size_compressed));
+  message.to(topic);
+  message.content_type("application/octet-string");
+
+  if (!client_->send(message))
+  {
+    LOG_ERR("Error sending message for " << topic << "...");
+    return;
+  }
+
   if (buf_compressed != buf)
   {
     delete[] buf_compressed;
