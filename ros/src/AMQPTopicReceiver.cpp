@@ -1,6 +1,5 @@
 #include <amqp_topic_transceiver/AMQPTopicReceiver.h>
 #include <topic_tools/shape_shifter.h>
-#include <amqp_topic_transceiver/utils.h>
 #include <blosc.h>
 
 DEFINE_LOGGER_VARIABLES
@@ -35,43 +34,32 @@ AMQPTopicReceiver::AMQPTopicReceiver(ros::NodeHandle node_handle, ros::NodeHandl
     LOG_ERR("Error setting compressor. Does it really exist?");
   }
 
-  amqp_socket_t* socket = nullptr;
+  client_ = std::make_shared<AMQPClient>(
+      server_url_ + ":" + std::to_string(server_port_), exchange_, server_user_, server_password_);
 
-  conn = amqp_new_connection();
+  container_ = std::make_shared<proton::container>(*client_);
+  container_thread_ = std::make_shared<std::thread>([&]() { container_->run(); });
 
-  socket = amqp_tcp_socket_new(conn);
-  if (socket == nullptr)
-  {
-    die("creating TCP socket");
-  }
-
-  int status = amqp_socket_open(socket, server_url_.c_str(), server_port_);
-  if (status != 0)
-  {
-    die("opening TCP socket");
-  }
-
-  die_on_amqp_error(amqp_login(conn,
-                               "/",
-                               AMQP_DEFAULT_MAX_CHANNELS,
-                               AMQP_DEFAULT_FRAME_SIZE,
-                               0,
-                               AMQP_SASL_METHOD_PLAIN,
-                               server_user_.c_str(),
-                               server_password_.c_str()),
-                    "Logging in");
-  amqp_channel_open(conn, 1);
-  die_on_amqp_error(amqp_get_rpc_reply(conn), "Opening channel");
-
-  amqp_exchange_declare(
-      conn, 1, amqp_cstring_bytes(exchange_.c_str()), amqp_cstring_bytes("fanout"), 0, 0, 0, 0, amqp_empty_table);
+  receiver_thread_ = std::make_shared<std::thread>([&]() {
+    while (true)
+    {
+      auto msg = client_->receive();
+      if (!msg)
+      {
+        break;
+      }
+      // std::cout << "received \"" << msg->body() << '"' << std::endl;
+      handleMessage(*msg);
+    }
+  });
 }
 
 AMQPTopicReceiver::~AMQPTopicReceiver()
 {
-  die_on_amqp_error(amqp_channel_close(conn, 1, AMQP_REPLY_SUCCESS), "Closing channel");
-  die_on_amqp_error(amqp_connection_close(conn, AMQP_REPLY_SUCCESS), "Closing connection");
-  die_on_error(amqp_destroy_connection(conn), "Ending connection");
+  client_->close();
+  container_->stop();
+  receiver_thread_->join();
+  container_thread_->join();
 }
 
 class Wrapper
@@ -96,11 +84,6 @@ private:
   const char* buf_;
   int size_;
 };
-
-static inline std::string b2s(const amqp_bytes_t& bytes)
-{
-  return std::string(static_cast<const char*>(bytes.bytes), bytes.len);
-}
 
 // static inline std::string str2hex(const std::string &input) {
 //   std::stringstream ss;
@@ -136,110 +119,92 @@ int AMQPTopicReceiver::decompress_buffer(const char* buf, const char** buf2, siz
   return dsize;
 }
 
-bool AMQPTopicReceiver::run()
+void AMQPTopicReceiver::handleMessage(const proton::message& message)
 {
-  amqp_bytes_t exchange = amqp_cstring_bytes(exchange_.c_str());
-  amqp_bytes_t routingkey = amqp_cstring_bytes("");
-  amqp_bytes_t queuename = amqp_cstring_bytes("");
+  LOG_DEB("got a valid message");
+  auto body_type = message.body().type();
+  auto topic = message.to();
+  auto content_type = message.content_type();
+  LOG_DEB("Got message for " << topic << ", encoding type " << body_type);
 
-  auto* res = amqp_queue_declare(conn, 1, queuename, 0, 0, 0, 1, amqp_empty_table);
-  queuename = res->queue;
-  die_on_amqp_error(amqp_get_rpc_reply(conn), "Declaring queue");
-
-  amqp_queue_bind(conn, 1, queuename, exchange, routingkey, amqp_empty_table);
-  die_on_amqp_error(amqp_get_rpc_reply(conn), "Binding queue to exchange");
-
-  amqp_basic_consume(conn, 1, queuename, amqp_empty_bytes, 0, 1, 0, amqp_empty_table);
-  die_on_amqp_error(amqp_get_rpc_reply(conn), "Consuming");
-  LOG_DEB("Start consuming");
-
-  while (ros::ok() && !ros::isShuttingDown())
+  std::string content;
+  if (body_type == proton::BINARY)
   {
-    ros::spinOnce();
-
-    amqp_envelope_t envelope;
-    amqp_maybe_release_buffers(conn);
-
-    struct timeval timeout = { .tv_sec = 0, .tv_usec = 500000 };
-    auto consume_res = amqp_consume_message(conn, &envelope, &timeout, 0);
-
-    if (AMQP_RESPONSE_NORMAL != consume_res.reply_type)
-    {
-      continue;
-    }
-    size_t buf_size = envelope.message.body.len;
-    LOG_DEB("Received a message with " << buf_size << " bytes!");
-
-    // LOG_DEB("Delivery " << envelope.delivery_tag << ", exchange " << b2s(envelope.exchange) << " routingkey " <<
-    // b2s(envelope.routing_key)); LOG_DEB("Message body: " << str2hex(b2s(envelope.message.body)));
-
-    std::string content_type = b2s(envelope.message.properties.content_type);
-    std::string topic = b2s(envelope.routing_key);
-
-    LOG_DEB("message content type: " << content_type);
-    if (content_type == "application/message-metadata")
-    {
-      LOG_DEB("Received topic metadata for topic " << topic);
-      const auto* buf_compressed = static_cast<const char*>(envelope.message.body.bytes);
-      const char* buf;
-      decompress_buffer(buf_compressed, &buf, envelope.message.body.len);
-      const auto* len_ptr = reinterpret_cast<const uint32_t*>(buf);
-      const char* data_ptr = buf + 3 * sizeof(uint32_t);
-
-      auto md5sum = std::string(data_ptr, len_ptr[0]);
-      auto datatype = std::string(data_ptr + len_ptr[0], len_ptr[1]);
-      auto definition = std::string(data_ptr + len_ptr[0] + len_ptr[1], len_ptr[2]);
-      bool latch = buf[buf_size - 1] != 0;
-      if (buf != buf_compressed)
-      {
-        delete[] buf;
-      }
-
-      auto info_entry = pubs_.find(topic);
-      if (info_entry != pubs_.end() && info_entry->second.md5sum == md5sum && latch == info_entry->second.latch)
-      {
-        amqp_destroy_envelope(&envelope);
-        continue;
-      }
-      ros::AdvertiseOptions opts(topic + topic_suffix_, queue_size_, md5sum, datatype, definition);
-      opts.latch = latch;
-      auto pub = nh_.advertise(opts);
-      LOG_DEB("Advertising topic " << topic << topic_suffix_);
-      info_entry = pubs_.emplace(topic, pub).first;
-      info_entry->second.md5sum = md5sum;
-      info_entry->second.datatype = datatype;
-      info_entry->second.definition = definition;
-      info_entry->second.latch = latch;
-      info_entry->second.msg.morph(md5sum, datatype, definition, std::string(latch ? "true" : "false"));
-    }
-    else
-    {
-      LOG_DEB("Got message data on topic " << topic);
-
-      auto info_entry = pubs_.find(topic);
-      if (info_entry == pubs_.end())
-      {
-        amqp_destroy_envelope(&envelope);
-        continue;
-      }
-      LOG_DEB("Publishing on topic " << topic << topic_suffix_);
-      const auto* buf_compressed = static_cast<const char*>(envelope.message.body.bytes);
-      const char* buf;
-      auto size = decompress_buffer(buf_compressed, &buf, envelope.message.body.len);
-      auto& msg = info_entry->second.msg;
-      Wrapper wrap(buf, size);
-      msg.read(wrap);
-      if (buf != buf_compressed)
-      {
-        delete[] buf;
-      }
-
-      info_entry->second.pub.publish(msg);
-    }
-    amqp_destroy_envelope(&envelope);
+    proton::binary content_bin;
+    proton::get(message.body(), content_bin);
+    content = content_bin;
   }
-  // amqp_basic_cancel(conn, 1, NULL);
-  return true;
+  else if (body_type == proton::STRING)
+  {
+    proton::get(message.body(), content);
+  }
+  else
+  {
+    LOG_ERR_THROTTLE(5.0, "Got unknown body encoding " << body_type << "! Skipping message!");
+    return;
+  }
+
+  size_t buf_size = content.size();
+  LOG_DEB("Received a message with " << buf_size << " bytes!");
+
+  LOG_DEB("message content type: " << content_type);
+  if (content_type == "application/message-metadata")
+  {
+    LOG_DEB("Received topic metadata for topic " << topic);
+    const auto* buf_compressed = static_cast<const char*>(content.c_str());
+    const char* buf;
+    decompress_buffer(buf_compressed, &buf, buf_size);
+    const auto* len_ptr = reinterpret_cast<const uint32_t*>(buf);
+    const char* data_ptr = buf + 3 * sizeof(uint32_t);
+
+    auto md5sum = std::string(data_ptr, len_ptr[0]);
+    auto datatype = std::string(data_ptr + len_ptr[0], len_ptr[1]);
+    auto definition = std::string(data_ptr + len_ptr[0] + len_ptr[1], len_ptr[2]);
+    bool latch = buf[buf_size - 1] != 0;
+    if (buf != buf_compressed)
+    {
+      delete[] buf;
+    }
+
+    auto info_entry = pubs_.find(topic);
+    if (info_entry != pubs_.end() && info_entry->second.md5sum == md5sum && latch == info_entry->second.latch)
+    {
+      return;
+    }
+    ros::AdvertiseOptions opts(topic + topic_suffix_, queue_size_, md5sum, datatype, definition);
+    opts.latch = latch;
+    auto pub = nh_.advertise(opts);
+    LOG_DEB("Advertising topic " << topic << topic_suffix_);
+    info_entry = pubs_.emplace(topic, pub).first;
+    info_entry->second.md5sum = md5sum;
+    info_entry->second.datatype = datatype;
+    info_entry->second.definition = definition;
+    info_entry->second.latch = latch;
+    info_entry->second.msg.morph(md5sum, datatype, definition, std::string(latch ? "true" : "false"));
+  }
+  else
+  {
+    LOG_DEB("Got message data on topic " << topic);
+
+    auto info_entry = pubs_.find(topic);
+    if (info_entry == pubs_.end())
+    {
+      return;
+    }
+    LOG_DEB("Publishing on topic " << topic << topic_suffix_);
+    const auto* buf_compressed = static_cast<const char*>(content.c_str());
+    const char* buf;
+    auto size = decompress_buffer(buf_compressed, &buf, buf_size);
+    auto& msg = info_entry->second.msg;
+    Wrapper wrap(buf, size);
+    msg.read(wrap);
+    if (buf != buf_compressed)
+    {
+      delete[] buf;
+    }
+
+    info_entry->second.pub.publish(msg);
+  }
 }
 
 void AMQPTopicReceiver::reconfigureRequest(AMQPTopicReceiver_configConfig& new_config, uint32_t level)

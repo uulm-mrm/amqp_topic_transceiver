@@ -7,7 +7,6 @@ int main(int argc, char** argv)
 
   amqp_topic_transceiver::AMQPTopicReceiver AMQPTopicReceiver_node(ros::NodeHandle(), ros::NodeHandle("~"));
 
-  // ros::spin();
-  AMQPTopicReceiver_node.run();
+  ros::spin();
   return 0;
 }

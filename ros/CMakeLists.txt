@@ -6,7 +6,7 @@ get_version_string_from_package_xml(.)
 show_build_info("ros")
 
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(RABBITMQ_C REQUIRED librabbitmq)
+find_package(ProtonCpp REQUIRED)
 pkg_check_modules(BLOSC REQUIRED blosc)
 
 find_aduulm_package(aduulm_logger_lib)
@@ -34,12 +34,10 @@ catkin_package(
 add_executable(AMQPTopicTransmitter_node
   src/AMQPTopicTransmitter.cpp
   src/AMQPTopicTransmitter_node.cpp
-  src/utils.cpp
 )
 add_executable(AMQPTopicReceiver_node
   src/AMQPTopicReceiver.cpp
   src/AMQPTopicReceiver_node.cpp
-  src/utils.cpp
 )
 
 foreach(target_node AMQPTopicTransmitter_node AMQPTopicReceiver_node)
@@ -51,7 +49,6 @@ foreach(target_node AMQPTopicTransmitter_node AMQPTopicReceiver_node)
     SYSTEM
     PUBLIC
       ${catkin_INCLUDE_DIRS}
-      ${RABBITMQ_C_INCLUDE_DIRS}
       ${BLOSC_INCLUDE_DIRS}
   )
 
@@ -65,7 +62,7 @@ foreach(target_node AMQPTopicTransmitter_node AMQPTopicReceiver_node)
   target_link_libraries(${target_node}
     PUBLIC
       ${catkin_LIBRARIES}
-      ${RABBITMQ_C_LDFLAGS}
+      Proton::cpp
       -L/usr/local/lib
       ${BLOSC_LDFLAGS}
   )
