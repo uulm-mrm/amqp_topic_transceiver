@@ -1,0 +1,35 @@
+<?xml version="2.0"?>
+<launch>
+  <node pkg="rostopic" type="rostopic" name="test_publisher" args="pub -r 3 /test std_msgs/String testtesttest" output="screen">
+  </node>
+
+  <node pkg="amqp_topic_transceiver" type="AMQPTopicTransmitter_node" name="transmitter" output="screen" respawn="true">
+    <rosparam param="topics">['/test', '/not_available']</rosparam>
+    <param name="log_level" value="1" />
+    <param name="server_url" value="localhost" />
+    <param name="server_port" value="5001" />
+    <param name="server_user" value="mrm" />
+    <param name="server_password" value="mrm" />
+  </node>
+
+  <node pkg="amqp_topic_transceiver" type="AMQPTopicReceiver_node" name="receiver" output="screen" respawn="true">
+    <param name="log_level" value="1" />
+    <param name="server_url" value="localhost" />
+    <param name="server_port" value="5001" />
+    <param name="server_user" value="mrm" />
+    <param name="server_password" value="mrm" />
+    <param name="topic_suffix" value="__amqp" />
+  </node>
+
+  <node pkg="amqp_topic_transceiver" type="AMQPTopicReceiver_node" name="receiver2" output="screen" respawn="true">
+    <param name="log_level" value="1" />
+    <param name="server_url" value="localhost" />
+    <param name="server_port" value="5001" />
+    <param name="server_user" value="mrm" />
+    <param name="server_password" value="mrm" />
+    <param name="topic_suffix" value="__amqp2" />
+  </node>
+
+  <node pkg="rostopic" type="rostopic" name="test_subscriber" args="hz /test__amqp" output="screen">
+  </node>
+</launch>
