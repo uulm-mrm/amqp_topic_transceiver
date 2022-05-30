@@ -149,6 +149,9 @@ void AMQPTopicReceiver::handleMessage(const proton::message& message)
   auto topic = message.to();
   auto content_type = message.content_type();
   LOG_DEB("Got message for " << topic << ", encoding type " << body_type);
+  if (topic.find("spies") != std::string::npos) {
+    return;
+  }
 
   std::string content;
   if (body_type == proton::BINARY)
