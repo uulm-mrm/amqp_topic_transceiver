@@ -33,6 +33,7 @@ AMQPTopicReceiver::AMQPTopicReceiver(const std::string& name) : rclcpp_lifecycle
   decompression_buffer_size_ = get_parameter("decompression_buffer_size").as_int();
 
   aduulm_logger::setLogLevel(static_cast<aduulm_logger::LoggerLevel>(log_level));
+  LOG_DEB("Log level set to " << log_level);
 
   blosc_init();
   auto rcode = blosc_set_compressor("zstd");
@@ -149,9 +150,6 @@ void AMQPTopicReceiver::handleMessage(const proton::message& message)
   auto topic = message.to();
   auto content_type = message.content_type();
   LOG_DEB("Got message for " << topic << ", encoding type " << body_type);
-  if (topic.find("spies") != std::string::npos) {
-    return;
-  }
 
   std::string content;
   if (body_type == proton::BINARY)
@@ -169,6 +167,7 @@ void AMQPTopicReceiver::handleMessage(const proton::message& message)
     LOG_ERR_THROTTLE(5.0, "Got unknown body encoding " << body_type << "! Skipping message!");
     return;
   }
+  LOG_DEB("Got body content");
 
   auto info_entry = pubs_.find(topic);
   const std::string& metadata = proton::get<std::string>(message.properties().get("metadata"));
