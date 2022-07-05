@@ -17,6 +17,8 @@ def generate_launch_description():
                 "log_level": 4,
                 "topics": ['/test_topic']
             }],
+            respawn=True,
+            respawn_delay=5,
             # arguments=['--ros-args', '--log-level', "DEBUG"]
         ),
         Node(
@@ -31,6 +33,8 @@ def generate_launch_description():
                 "log_level": 4,
                 "topic_suffix": "__amqp"
             }],
+            respawn=True,
+            respawn_delay=5,
             # arguments=['--ros-args', '--log-level', "DEBUG"]
         ),
     ])

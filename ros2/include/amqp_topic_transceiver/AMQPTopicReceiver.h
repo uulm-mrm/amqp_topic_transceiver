@@ -120,6 +120,8 @@ public:
   }
 
 private:
+  std::optional<proton::connection> connection_;
+
   // == messaging_handler overrides, only called in proton handler thread
   // Note: this example creates a connection when the container starts.
   // To create connections after the container has started, use
@@ -147,18 +149,26 @@ private:
       co.sasl_enabled(false);
     }
     ro.max_delay(proton::duration(2000));
+    co.idle_timeout(proton::duration(5000));
     co.reconnect(ro);
-    cont.connect(url_, co);
+    connection_ = cont.connect(url_, co);
     LOG_DEB("on_container_start done");
+  }
+  void open_receivers()
+  {
+    if (!connection_) {
+      LOG_ERR("No connection, but trying to create receiver!");
+      return;
+    }
+    LOG_INF("Opening receiver...");
+    connection_->open_receiver(address_);
   }
   void on_connection_open(proton::connection& conn) override
   {
     LOG_DEB("on_connection_open start");
     if (!conn.reconnected() || !receiver_)
     {
-      // Do initial per-connection setup here.
-      // Open initial senders/receivers if needed.
-      conn.open_receiver(address_);
+      open_receivers();
     }
     else
     {
@@ -188,20 +198,30 @@ private:
   void on_transport_close(proton::transport& tp) override
   {
     LOG_WARN("transport closed");
+    if (receiver_) {
+      receiver_->close();
+    }
   }
   void on_transport_error(proton::transport& tp) override
   {
     LOG_WARN("transport error");
+    if (receiver_) {
+      receiver_->close();
+    }
   }
   void on_connection_close(proton::connection& conn) override
   {
     LOG_WARN("connection closed");
-    /* receiver_.close(); */
+    if (receiver_) {
+      receiver_->close();
+    }
   }
   void on_connection_error(proton::connection& conn) override
   {
     LOG_WARN("connection closed due to error: " << conn.error());
-    /* receiver_.close(); */
+    if (receiver_) {
+      receiver_->close();
+    }
   }
   void on_receiver_open(proton::receiver& r) override
   {
@@ -211,20 +231,20 @@ private:
   void on_receiver_close(proton::receiver& r) override
   {
     LOG_WARN("receiver closed");
-    /* receiver_connected_ = false; */
-    /* receiver_.close(); */
+    using namespace std::chrono_literals;
+    std::this_thread::sleep_for(500ms);
+    open_receivers();
   }
   void on_receiver_error(proton::receiver& r) override
   {
     LOG_WARN("receiver closed with error");
-    /* receiver_connected_ = false; */
-    /* receiver_.close(); */
   }
   void on_receiver_detach(proton::receiver& r) override
   {
     LOG_WARN("receiver detached/closed");
-    /* receiver_connected_ = false; */
-    /* receiver_.close(); */
+    if (receiver_) {
+      receiver_->close();
+    }
   }
 };
 }  // namespace amqp_topic_transceiver

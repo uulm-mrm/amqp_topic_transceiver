@@ -125,6 +125,8 @@ public:
   }
 
 private:
+  std::optional<proton::connection> connection_;
+
   proton::work_queue* work_queue()
   {
     // Wait till work_queue_ and sender_ are initialized.
@@ -162,18 +164,28 @@ private:
       co.sasl_enabled(false);
     }
     ro.max_delay(proton::duration(2000));
+    co.idle_timeout(proton::duration(5000));
     co.reconnect(ro);
-    cont.connect(url_, co);
+    connection_ = cont.connect(url_, co);
     LOG_DEB("on_container_start done");
+  }
+  void open_senders()
+  {
+    // Do initial per-connection setup here.
+    // Open initial senders/receivers if needed.
+    if (!connection_) {
+      LOG_ERR("No connection, but trying to create sender!");
+      return;
+    }
+    LOG_INF("Opening sender...");
+    connection_->open_sender(address_);
   }
   void on_connection_open(proton::connection& conn) override
   {
     LOG_DEB("on_connection_open start");
     if (!conn.reconnected() || !sender_)
     {
-      // Do initial per-connection setup here.
-      // Open initial senders/receivers if needed.
-      conn.open_sender(address_);
+      open_senders();
     }
     else
     {
@@ -206,39 +218,49 @@ private:
   void on_transport_close(proton::transport& tp) override
   {
     LOG_WARN("transport closed");
-    // sender_->connection().open();
+    if (sender_) {
+      sender_->close();
+    }
   }
   void on_transport_error(proton::transport& tp) override
   {
     LOG_WARN("transport error");
+    if (sender_) {
+      sender_->close();
+    }
   }
   void on_connection_close(proton::connection& conn) override
   {
     LOG_WARN("connection closed");
-    /* sender_.close(); */
+    if (sender_) {
+      sender_->close();
+    }
   }
   void on_connection_error(proton::connection& conn) override
   {
     LOG_WARN("connection closed due to error: " << conn.error());
-    /* sender_.close(); */
+    if (sender_) {
+      sender_->close();
+    }
   }
   void on_sender_close(proton::sender& s) override
   {
     LOG_WARN("sender closed");
-    /* sender_connected_ = false; */
-    /* sender_.close(); */
+    sender_connected_ = false;
+    using namespace std::chrono_literals;
+    std::this_thread::sleep_for(500ms);
+    open_senders();
   }
   void on_sender_error(proton::sender& s) override
   {
     LOG_WARN("sender closed with error");
-    /* sender_connected_ = false; */
-    /* sender_.close(); */
   }
   void on_sender_detach(proton::sender& s) override
   {
     LOG_WARN("sender detached/closed");
-    /* sender_connected_ = false; */
-    /* sender_.close(); */
+    if (sender_) {
+      sender_->close();
+    }
   }
 };
 
