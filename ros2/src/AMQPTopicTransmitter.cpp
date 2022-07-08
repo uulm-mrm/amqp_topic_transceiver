@@ -262,12 +262,16 @@ void AMQPTopicTransmitter::processMessage(const std::string& topic,
   size_t size_compressed = compress_buffer(buf, &buf_compressed, msg->size());
   LOG_DEB("Sending AMQP ROS message with body size: " << size_compressed);
 
+  const size_t message_ttl_ms = 500;
+
   proton::message message;
   message.body() = proton::binary(std::string(const_cast<char*>(buf_compressed), size_compressed));
   message.properties().put("metadata", info.metadata);
   message.properties().put("topic_type", topic_type);
   message.to(topic);
   message.content_type("application/octet-string");
+  message.expiry_time(proton::timestamp(proton::timestamp::now().milliseconds() + message_ttl_ms));
+  message.ttl(proton::duration(message_ttl_ms));
 
   auto ret = client_->send(message);
   if (buf_compressed != buf)
