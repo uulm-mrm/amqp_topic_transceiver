@@ -224,7 +224,11 @@ private:
   }
   void on_transport_error(proton::transport& tp) override
   {
+    static int error_cnt = 0;
     LOG_WARN("transport error");
+    if (++error_cnt >= 3) {
+      exit(2); // crash node, should respawn
+    }
     if (sender_) {
       sender_->close();
     }
