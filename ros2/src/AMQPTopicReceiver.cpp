@@ -106,6 +106,7 @@ int AMQPTopicReceiver::decompress_buffer(const char* buf, const char** buf2, siz
     char *tmp = new char[nbytes];
     *buf2 = tmp;
     auto dsize = blosc_decompress(buf, tmp, nbytes);
+    assert(dsize <= nbytes);
     LOG_DEB("Decompression output size: " << dsize);
     if (dsize >= 0) {
       return dsize;
@@ -258,6 +259,19 @@ void AMQPTopicReceiver::handleMessage(const proton::message& message)
   msg_.buffer_length = size;
   msg_.buffer_capacity = size;
   msg_.allocator = rcutils_get_default_allocator();
+
+  /* std::stringstream ss2; */
+  /* for (int i = 10; i > 0; i--) { */
+  /*   ss2 << (int)msg_.buffer[size-i] << " "; */
+  /* } */
+  /* LOG_DEB("Last 10 bytes: " << ss2.str()); */
+  /* LOG_DEB("Last byte: " << (int)msg_.buffer[size-1]); */
+
+  // Sanity check: last byte should be a zero for ROS messages
+  if (msg_.buffer[size-1] != 0) {
+    throw std::runtime_error("Decoding result invalid!");
+  }
+
   // SerializedMessage should take care of deleting the buffer
   rclcpp::SerializedMessage msg(std::move(msg_));
 
