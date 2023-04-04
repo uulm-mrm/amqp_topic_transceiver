@@ -30,7 +30,6 @@ AMQPTopicReceiver::AMQPTopicReceiver(const std::string& name) : rclcpp_lifecycle
   server_password_ = get_parameter("server_password").as_string();
   topic_suffix_ = get_parameter("topic_suffix").as_string();
   use_compression_ = get_parameter("use_compression").as_bool();
-  decompression_buffer_size_ = get_parameter("decompression_buffer_size").as_int();
 
   aduulm_logger::setLogLevel(static_cast<aduulm_logger::LoggerLevel>(log_level));
   LOG_DEB("Log level set to " << log_level);
@@ -101,20 +100,22 @@ int AMQPTopicReceiver::decompress_buffer(const char* buf, const char** buf2, siz
     return size;
   }
   LOG_DEB("Decompression input size: " << size);
-  int dsize = decompression_buffer_size_;
-  char *tmp = new char[dsize]();
-  *buf2 = tmp;
-  dsize = blosc_decompress(buf, tmp, dsize);
-  if (dsize <= 0)
-  {
-    LOG_DEB("Decompression error.  Error code: " << dsize);
-    LOG_DEB("Assuming data was not compressed in the first place.");
+  size_t nbytes;
+  int ret = blosc_cbuffer_validate(buf, size, &nbytes);
+  if (ret >= 0) {
+    char *tmp = new char[nbytes];
+    *buf2 = tmp;
+    auto dsize = blosc_decompress(buf, tmp, nbytes);
+    LOG_DEB("Decompression output size: " << dsize);
+    if (dsize >= 0) {
+      return dsize;
+    }
+    LOG_ERR("Decompression error.  Error code: " << dsize);
     delete[] tmp;
-    *buf2 = buf;
-    return size;
   }
-  LOG_DEB("Decompression output size: " << dsize);
-  return dsize;
+  LOG_DEB("Assuming data was not compressed in the first place.");
+  *buf2 = buf;
+  return size;
 }
 
 static size_t deserialize(const char *buf, size_t cnt, char& value)
