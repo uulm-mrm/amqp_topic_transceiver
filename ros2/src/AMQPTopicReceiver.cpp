@@ -102,13 +102,14 @@ int AMQPTopicReceiver::decompress_buffer(const char* buf, const char** buf2, siz
   }
   LOG_DEB("Decompression input size: " << size);
   int dsize = decompression_buffer_size_;
-  *buf2 = new char[dsize];
-  dsize = blosc_decompress(buf, const_cast<char*>(*buf2), dsize);
+  char *tmp = new char[dsize]();
+  *buf2 = tmp;
+  dsize = blosc_decompress(buf, tmp, dsize);
   if (dsize <= 0)
   {
     LOG_DEB("Decompression error.  Error code: " << dsize);
     LOG_DEB("Assuming data was not compressed in the first place.");
-    delete[] * buf2;
+    delete[] tmp;
     *buf2 = buf;
     return size;
   }
@@ -149,6 +150,7 @@ void AMQPTopicReceiver::handleMessage(const proton::message& message)
   auto body_type = message.body().type();
   auto topic = message.to();
   auto content_type = message.content_type();
+
   LOG_DEB("Got message for " << topic << ", encoding type " << body_type);
 
   std::string content;
@@ -237,20 +239,21 @@ void AMQPTopicReceiver::handleMessage(const proton::message& message)
   }
 
   size_t buf_size = content.size();
-  LOG_DEB("Received a message with " << buf_size << " bytes!");
 
   LOG_DEB("Got message data on topic " << topic << " with type " << topic_type);
   LOG_DEB("Publishing on topic " << topic << topic_suffix_);
   const auto* buf_compressed = static_cast<const char*>(content.c_str());
-  const char* buf;
-  auto size = decompress_buffer(buf_compressed, &buf, buf_size);
+  char* buf;
+  auto size = decompress_buffer(buf_compressed, (const char **)&buf, buf_size);
+  LOG_DEB("Received a message with " << buf_size << " / " << size << " bytes!");
   if (buf == buf_compressed) {
     // we need to copy the buffer in this case because SerializedMessage will attempt to free it
-    buf = new char[size];
-    memcpy(const_cast<char*>(buf), buf_compressed, size); // should be fine
+    char *tmp = new char[size];
+    memcpy(tmp, buf_compressed, size);
+    buf = tmp;
   }
   rcl_serialized_message_t msg_;
-  msg_.buffer = reinterpret_cast<unsigned char*>(const_cast<char*>(buf)); // does not look safe, but should be fine
+  msg_.buffer = reinterpret_cast<unsigned char*>(buf);
   msg_.buffer_length = size;
   msg_.buffer_capacity = size;
   msg_.allocator = rcutils_get_default_allocator();
