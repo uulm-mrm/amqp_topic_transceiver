@@ -19,7 +19,7 @@ AMQPTopicTransmitter::AMQPTopicTransmitter(const std::string &name)
   declare_parameter("use_compression", true);
   declare_parameter("compression_algorithm", "zstd");
   declare_parameter("compression_level", 5);
-  declare_parameter<std::vector<std::string>>("topics", {});
+  declare_parameter<std::vector<std::string>>("topics", std::vector<std::string>{});
 
   int log_level = get_parameter("log_level").as_int();
   server_url_ = get_parameter("server_url").as_string();
