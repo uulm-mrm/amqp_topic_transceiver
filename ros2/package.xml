@@ -12,9 +12,8 @@
   <depend>rclcpp_lifecycle</depend>
 
   <depend>ament_cmake_auto</depend>
-  <depend>aduulm_messages</depend>
-  <depend>aduulm_messages_lib</depend>
   <depend>aduulm_logger</depend>
+  <depend>v2x_etsi_asn1_lib</depend>
 
   <export>
     <build_type>ament_cmake</build_type>

@@ -1,4 +1,4 @@
-#include <amqp_topic_transceiver/AMQPTopicTransmitter.h>
+#include <amqp_topic_transceiver/AMQPTopicTransceiver.h>
 #include <aduulm_logger/aduulm_logger.hpp>
 
 DEFINE_LOGGER_VARIABLES
@@ -7,7 +7,7 @@ int main(int argc, char** argv)
 {
   rclcpp::init(argc, argv);
 
-  auto node = std::make_shared<amqp_topic_transceiver::AMQPTopicTransmitter>("AMQPTopicTransmitter");
+  auto node = std::make_shared<amqp_topic_transceiver::AMQPTopicTransceiver>("AMQPTopicTransceiver");
 
   using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
   CallbackReturn configure_return;

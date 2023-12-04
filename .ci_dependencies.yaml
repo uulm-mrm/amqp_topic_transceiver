@@ -3,3 +3,5 @@ repositories:
     branch: develop
   - url: "ssh://git@mrm-git.e-technik.uni-ulm.de:7678/aduulm/source/ros/aduulm_logger.git"
     branch: develop
+  - url: "ssh://git@mrm-git.e-technik.uni-ulm.de:7678/aduulm/source/v2x_etsi_asn1.git"
+    branch: develop

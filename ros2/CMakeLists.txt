@@ -5,19 +5,16 @@ project(amqp_topic_transceiver)
 find_package(ament_cmake_auto REQUIRED)
 find_package(PkgConfig REQUIRED)
 find_package(ProtonCpp REQUIRED)
+find_package(v2x_amqp_connector_lib REQUIRED)
 pkg_check_modules(BLOSC REQUIRED blosc)
 ament_auto_find_build_dependencies()
 
-ament_auto_add_executable(AMQPTopicTransmitter_node
-  src/AMQPTopicTransmitter.cpp
-  src/AMQPTopicTransmitter_node.cpp
-)
-ament_auto_add_executable(AMQPTopicReceiver_node
-  src/AMQPTopicReceiver.cpp
-  src/AMQPTopicReceiver_node.cpp
+ament_auto_add_executable(AMQPTopicTransceiver
+  src/AMQPTopicTransceiver.cpp
+  src/AMQPTopicTransceiver_node.cpp
 )
 
-foreach(target_node AMQPTopicTransmitter_node AMQPTopicReceiver_node)
+foreach(target_node AMQPTopicTransceiver)
   target_include_directories(${target_node}
     SYSTEM
     PUBLIC
@@ -31,6 +28,8 @@ foreach(target_node AMQPTopicTransmitter_node AMQPTopicReceiver_node)
     Proton::cpp
     -L/usr/local/lib
     ${BLOSC_LDFLAGS}
+    v2x_amqp_connector_lib::v2x_amqp_connector_lib
+    uuid
   )
 endforeach()
 

@@ -7,15 +7,15 @@ def generate_launch_description():
     return LaunchDescription([
         Node(
             package='amqp_topic_transceiver',
-            executable='AMQPTopicTransmitter_node',
+            executable='AMQPTopicTransceiver',
             name='transmitter',
             parameters=[{
-                "server_url": "127.0.0.1",
-                "server_port": 5001,
-                "server_user": "mrm",
-                "server_password": "mrm",
+                "server_url": "127.0.0.1:5672",
+                "server_user": "anonymous",
+                "server_password": "",
+                "exchange": "detections",
                 "log_level": 4,
-                "topics": ['/test_topic']
+                "topics_to_transmit": ['/test_topic']
             }],
             respawn=True,
             respawn_delay=5,
@@ -23,13 +23,13 @@ def generate_launch_description():
         ),
         Node(
             package='amqp_topic_transceiver',
-            executable='AMQPTopicReceiver_node',
+            executable='AMQPTopicTransceiver',
             name='receiver',
             parameters=[{
-                "server_url": "127.0.0.1",
-                "server_port": 5001,
-                "server_user": "mrm",
-                "server_password": "mrm",
+                "server_url": "127.0.0.1:5672",
+                "server_user": "anonymous",
+                "exchange": "detections",
+                "server_password": "",
                 "log_level": 4,
                 "topic_suffix": "__amqp"
             }],
