@@ -25,6 +25,7 @@ def gen_config(config: LaunchConfig, params: AMQPTransceiverParameters):
         name=params.name,
         package='amqp_topic_transceiver',
         executable='AMQPTopicTransceiver',
+        handle_lifecycle=True,
         parameters={
             "server_url": params.host_url,
             "server_user": params.user,

@@ -9,14 +9,6 @@ int main(int argc, char** argv)
 
   auto node = std::make_shared<amqp_topic_transceiver::AMQPTopicTransceiver>("AMQPTopicTransceiver");
 
-  using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
-  CallbackReturn configure_return;
-  node->configure(configure_return);
-  if (CallbackReturn::SUCCESS == configure_return)
-  {
-    node->activate();
-  }
-
   rclcpp::executors::SingleThreadedExecutor exe;
   exe.add_node(node->get_node_base_interface());
 
