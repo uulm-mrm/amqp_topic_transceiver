@@ -10,13 +10,15 @@
 #include <thread>
 #include <aduulm_logger/aduulm_logger.hpp>
 #include <v2x_amqp_connector_lib/v2x_amqp_connector_lib.h>
-#include <v2x_etsi_asn1_lib/v2x_etsi_asn1_lib.h>
 
 namespace amqp_topic_transceiver
 {
 struct TopicSubscriberInfoContainer
 {
-  explicit TopicSubscriberInfoContainer(rclcpp::GenericSubscription::SharedPtr sub_, const std::string &topic_type_, const rclcpp::QoS &qos_) : sub(sub_), topic_type(topic_type_), qos(qos_)
+  explicit TopicSubscriberInfoContainer(rclcpp::GenericSubscription::SharedPtr sub_,
+                                        const std::string& topic_type_,
+                                        const rclcpp::QoS& qos_)
+    : sub(sub_), topic_type(topic_type_), qos(qos_)
   {
   }
 
@@ -29,7 +31,8 @@ struct TopicSubscriberInfoContainer
 
 struct TopicPublisherInfoContainer
 {
-  explicit TopicPublisherInfoContainer(rclcpp::GenericPublisher::SharedPtr pub_, rclcpp::QoS qos_) : pub(pub_), qos(qos_)
+  explicit TopicPublisherInfoContainer(rclcpp::GenericPublisher::SharedPtr pub_, rclcpp::QoS qos_)
+    : pub(pub_), qos(qos_)
   {
   }
 
@@ -41,12 +44,12 @@ struct TopicPublisherInfoContainer
 class AMQPTopicTransceiver : public rclcpp_lifecycle::LifecycleNode
 {
 public:
-  explicit AMQPTopicTransceiver(const std::string &name);
+  explicit AMQPTopicTransceiver(const std::string& name);
   ~AMQPTopicTransceiver() override;
 
 protected:
   void handleMessage(const proton::message& message);
-  void processMessage(const std::string& topic, const std::shared_ptr<rclcpp::SerializedMessage> &msg);
+  void processMessage(const std::string& topic, const std::shared_ptr<rclcpp::SerializedMessage>& msg);
   void create_subscriptions();
   size_t compress_buffer(const char* buf, const char** buf2, size_t size);
   int decompress_buffer(const char* buf, const char** buf2, size_t size);

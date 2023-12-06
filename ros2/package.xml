@@ -8,12 +8,12 @@
   <license>Proprietary, (c) 2018 Ulm University, Institute of Measurement, Control and Microtechnology</license>
   <buildtool_depend>ament_cmake</buildtool_depend>
 
+  <build_depend>aduulm_cmake_tools</build_depend>
   <depend>rclcpp</depend>
   <depend>rclcpp_lifecycle</depend>
 
-  <depend>ament_cmake_auto</depend>
   <depend>aduulm_logger</depend>
-  <depend>v2x_etsi_asn1_lib</depend>
+  <depend>v2x_amqp_connector_lib</depend>
 
   <export>
     <build_type>ament_cmake</build_type>
