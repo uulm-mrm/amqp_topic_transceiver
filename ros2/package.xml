@@ -4,7 +4,7 @@
   <version>0.0.0</version>
   <description>amqp_topic_transceiver</description>
   <author>Jan Strohbeck</author>
-  <maintainer email="jan.strohbeck@uni-ulm.de">Jan Strohbeck</maintainer>
+  <maintainer email="robin.dehler@uni-ulm.de">Robin Dehler</maintainer>
   <license>Proprietary, (c) 2018 Ulm University, Institute of Measurement, Control and Microtechnology</license>
   <buildtool_depend>ament_cmake</buildtool_depend>
 
