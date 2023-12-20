@@ -13,6 +13,8 @@ In combination, these nodes can be used to transmit messages on a ROS topic via 
 
 The source code is not officially released and is only for internal use.
 
-**Author(s): Jan Strohbeck   
-Maintainer: Jan Strohbeck, jan.strohbeck@uni-ulm.de  
-Affiliation: Institute of Measurements, Control and Microtechnology, Ulm University**
+**Author(s): Jan Strohbeck**
+
+**Maintainer: Robin Dehler, robin.dehler@uni-ulm.de**
+
+**Affiliation: Institute of Measurements, Control and Microtechnology, Ulm University**
