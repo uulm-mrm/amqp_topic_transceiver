@@ -13,8 +13,13 @@ In combination, these nodes can be used to transmit messages on a ROS topic via 
 
 The source code is not officially released and is only for internal use.
 
-**Author(s): Jan Strohbeck**
+Affiliation: Institute of Measurement, Control and Microtechnology, Ulm University.
 
-**Maintainer: Robin Dehler, robin.dehler@uni-ulm.de**
+### Aduulm Repository Metadata
 
-**Affiliation: Institute of Measurements, Control and Microtechnology, Ulm University**
+- last updated: 01/2024
+- name: AMQP Topic Transmitter
+- category: tooling
+- maintainers: Robin Dehler
+- license: internal use only
+- HW dependencies: none
