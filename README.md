@@ -1,17 +1,16 @@
-# amqp_topic_transceiver
+amqp_topic_transceiver
+======================
 
-Contains two nodes:
+Contains a node called AMQPTopicTransceiver, which can
+ - subscribe to ROS topics and send the serialized messages to an AMQP message queue
+ - consume messages from an AMQP message queue and publish them on ROS topics
 
- - AMQPTopicTransmitter: Subscribes to a ROS topic and sends the serialized message to an AMQP message queue.
- - AMQPTopicReceiver: Consumes messages pushed to an AMQP message queue and publishes them on a ROS topic.
+It can be used to transmit messages on ROS topics via an AMQP message broker from one ROS2 system to another ROS2 system.
 
-In combination, these nodes can be used to transmit messages on a ROS topic via an AMQP message broker from one ROS master to another ROS master.
+License
+=======
 
-## Overview
-
-### License
-
-The source code is not officially released and is only for internal use.
+License: Apache 2.0
 
 Affiliation: Institute of Measurement, Control and Microtechnology, Ulm University.
 
@@ -23,3 +22,12 @@ Affiliation: Institute of Measurement, Control and Microtechnology, Ulm Universi
 - maintainers: Robin Dehler
 - license: internal use only
 - HW dependencies: none
+
+Dependencies
+============
+
+* [CMake](https://cmake.org/)
+* ROS2
+* [aduulm_cmake_tools](https://github.com/uulm-mrm/aduulm_cmake_tools)
+* [aduulm_logger](https://github.com/uulm-mrm/aduulm_logger)
+* [v2x_amqp_connector_lib](https://github.com/uulm-mrm/v2x_etsi_asn1)
