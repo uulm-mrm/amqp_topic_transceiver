@@ -31,3 +31,12 @@ Dependencies
 * [aduulm_cmake_tools](https://github.com/uulm-mrm/aduulm_cmake_tools)
 * [aduulm_logger](https://github.com/uulm-mrm/aduulm_logger)
 * [v2x_amqp_connector_lib](https://github.com/uulm-mrm/v2x_etsi_asn1)
+
+Acknowledgements
+================
+
+The basic versions of the adapted ASN.1 files are based on our joint developments with the project partners within the project LUKAS. This project was financially supported by the Federal Ministry of Economic Affairs and Climate Action of Germany within the program "Highly and Fully Automated Driving in Demanding Driving Situations" (project LUKAS, grant number 19A20004F).
+
+Parts of the further developments have been made as part of the PoDIUM project and the EVENTS project, which both are funded by the European Union under grant agreement No. 101069547 and No. 101069614, respectively. Views and opinions expressed are however those of the authors only and do not necessarily reflect those of the European Union or European Commission. Neither the European Union nor the granting authority can be held responsible for them.
+
+Parts of the further developments have been financially supported by the Federal Ministry of Education and Research (project AUTOtech.*agil*, FKZ 01IS22088W).
