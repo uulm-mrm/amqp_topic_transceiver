@@ -20,7 +20,7 @@ Affiliation: Institute of Measurement, Control and Microtechnology, Ulm Universi
 - name: AMQP Topic Transmitter
 - category: tooling
 - maintainers: Robin Dehler
-- license: internal use only
+- license: Apache 2.0
 - HW dependencies: none
 
 Dependencies
